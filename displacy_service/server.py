@@ -212,8 +212,26 @@ class SentsDepResources(object):
                 'Sentence tokenization and Dependency parsing failed',
                 '{}'.format(e))
 
+class RequireAPIKeyMiddleware:
+    def __init__(self):
+        # Get the API key from the environment variable
+        self.valid_api_key = os.getenv('SPACY_API_KEY')
 
-APP = falcon.API()
+    def process_request(self, req, resp):
+        api_key = req.get_header('API-Key')
+
+        if api_key is None:
+            raise falcon.HTTPMissingHeader('API-Key')
+
+        # Compare the provided API key to the valid one from the environment variable
+        if api_key != self.valid_api_key:
+            raise falcon.HTTPUnauthorized(
+                title="Authentication required",
+                description="The provided API key is invalid.",
+                challenges=["API-Key realm='falcon'"]
+            )
+
+APP = falcon.API(middleware=[RequireAPIKeyMiddleware()])
 APP.add_route('/dep', DepResource())
 APP.add_route('/ent', EntResource())
 APP.add_route('/sents', SentsResources())
